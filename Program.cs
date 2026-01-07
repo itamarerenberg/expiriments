@@ -1,9 +1,10 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using expiriments;
+using experiments;
 
-calculator calc = new calculator();
+Calculator calc = new Calculator();
 
 string input = "";
+Printer printer = new Printer();
 
 while (input != "exit")
 {
@@ -11,7 +12,7 @@ while (input != "exit")
     try
     {
         var tree = calc.buildTree(input);
-        tree.printTree();
+        printer.PrintTree(tree);
         Console.WriteLine("result " + calc.calcTree(tree));
     }
     catch (Exception ex)

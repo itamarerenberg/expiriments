@@ -4,15 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace expiriments
+namespace experiments
 {
     class BeNode
     {
-        public string _value { get; set; }
+        public char _value { get; set; }
         public BeNode? _right { get; set; }
         public BeNode? _left { get; set; }
 
-        public BeNode(string value, BeNode? right=null, BeNode? left=null) { 
+        public BeNode(char value, BeNode? right = null, BeNode? left = null)
+        {
             _value = value;
             _right = right;
             _left = left;
@@ -20,60 +21,119 @@ namespace expiriments
 
         public int treeDepth()
         {
-            int rd = _right != null? _right.treeDepth() : 0;
-            int ld = _left != null? _left.treeDepth() : 0; 
+            int rd = _right != null ? _right.treeDepth() : 0;
+            int ld = _left != null ? _left.treeDepth() : 0;
             return 1 + Math.Max(rd, ld);
         }
+    }
 
+    class Printer
+    {
+        public int _nodeWidth = 3;
+        public int _nodeHeight = 1;
 
-        public void printTree()
+        public void PrintTree(BeNode tree)
         {
-            int depth = treeDepth();
-            string[] board = new string[depth];
-
-            writeToPrint(0, 0, depth, board);
-
-            for (int i = 0; i < depth; i++)
+            int depth = tree.treeDepth();
+            int ySize = depth * _nodeHeight;
+            int xSize = (int)Math.Pow(2, depth - 1) * (_nodeWidth+1);
+            char[][] board = new char[ySize][];
+            for (int i = 0; i < ySize; i++)
             {
-                Console.WriteLine(board[i]);
+                board[i] = new char[xSize+1];
+                Array.Fill(board[i], ' ');
+            }
+
+            writeToPrint(tree, 0, xSize/2, xSize/4, board);
+
+            for (int i = 0; i < ySize; i++)
+            {
+                Console.WriteLine(new string(board[i]));
                 Console.WriteLine();
             }
         }
 
-        private void writeToPrint(int level, int margin, int depth, string[] board)
+        private void writeToPrint(BeNode tree, int yDepth, int xDepth, int margin, char[][] board)
         {
-            int finalMargin = Math.Max((depth - level + 1) * margin - 1, depth - level);
-            board[level] += new string(' ', finalMargin);
-            board[level] += _value;
+            //board[yDepth][xDepth] = '-';
+            //board[yDepth][xDepth+1] = '-';
+            //board[yDepth][xDepth+2] = '-';
+            
+            board[yDepth][xDepth] = '/';
+            board[yDepth][xDepth+1] = tree._value;
+            board[yDepth][xDepth+2] = '\\';
 
-            if (_right != null)
-                _right.writeToPrint(level + 1, margin-1, depth, board); 
-            if (_left != null)
-                _left.writeToPrint(level + 1, margin + 1, depth, board);
+            //board[yDepth+2][xDepth] = '-';
+            //board[yDepth+2][xDepth + 1] = '-';
+            //board[yDepth+2][xDepth + 2] = '-';
+
+            
+
+            if (tree._right != null)
+            {
+                for (int i = xDepth+3; i < xDepth + margin; i++)
+                    board[yDepth + 1][i] = '~';
+                board[yDepth + 1][xDepth+2] = '|';
+                writeToPrint(tree._right, yDepth + _nodeHeight, xDepth + margin, margin / 2, board);
+            }
+
+            if (tree._left != null)
+            {
+                for(int i = xDepth - margin + _nodeWidth; i < xDepth; i++)
+                    board[yDepth + 1][i] = '~';
+                board[yDepth + 1][xDepth] = '|';
+                writeToPrint(tree._left, yDepth + _nodeHeight, xDepth - margin, margin / 2, board);
+            }
         }
-
     }
 
-    internal class calculator
+    internal class Calculator
     {
         public BeNode buildTree(string expression)
         {
             // peel brackets 
-            if (expression[0] == '(' && expression[expression.Length - 1] == ')')  
-                expression = expression.Substring(1, expression.Length-2);
+            int bracketsLevel = 0;
+            try
+            {
+                while (expression[0] == '(')
+                {
+                    bool peelBrackets = true;
+                    bracketsLevel = 1;
+                    for (int i = 1; i < expression.Length-1; i++)
+                    {
+                        if (expression[i] == '(')
+                            bracketsLevel++;
+                        else if (expression[i] == ')')
+                            bracketsLevel--;
+
+                        if (bracketsLevel == 0) { 
+                            peelBrackets=false;
+                            break;
+                        } 
+                    }
+                    if (peelBrackets)
+                        expression = expression.Substring(1, expression.Length - 2);
+                    else
+                        break;
+                }
+            }
+            catch
+            {
+                Console.WriteLine("-");
+            }
 
             // if expression is only a number -> return it as a leaf with expression as its value
             if (expression.All(c => char.IsDigit(c))) // '0' <= 'c' <= '9'
-                return new BeNode(expression);
+                return new BeNode(expression[0]);
 
             // else -> build the tree recursively
-            int bracketsLevel = 0;
+            bracketsLevel = 0;
             char breakChar = '@';
             int breakIndx = 0;
             Dictionary<char, int> opPriority = new Dictionary<char, int>
             {
                 {'*', 10 },
-                {'/', 10 },
+                {':', 10 },
                 {'+', 5 },
                 {'-', 5},
                 {'@', int.MaxValue } // default - only for place holder
@@ -95,26 +155,26 @@ namespace expiriments
                 }
             }
 
-            return new BeNode(breakChar.ToString(), 
+            return new BeNode(breakChar,
                 buildTree(expression.Substring(0, breakIndx)),
-                buildTree(expression.Substring(breakIndx+1)));
+                buildTree(expression.Substring(breakIndx + 1)));
         }
 
         public float calcTree(BeNode node)
         {
-            if (node._value.All(c => char.IsDigit(c)))
-                return int.Parse(node._value);
+            if (char.IsDigit(node._value))
+                return int.Parse(node._value.ToString());
 
-            var opDict = new Dictionary<string, Func<float, float, float>>
+            var opDict = new Dictionary<char, Func<float, float, float>>
             {
-                {"*", (a, b) => a*b },
-                {"/", (a, b) => a/b },
-                {"+", (a, b) => a+b },
-                {"-", (a, b) => a-b }
+                {'*', (a, b) => a*b },
+                {':', (a, b) => a/b },
+                {'+', (a, b) => a+b },
+                {'-', (a, b) => a-b }
             };
 
             return opDict[node._value](
-                calcTree(node._right), 
+                calcTree(node._right),
                 calcTree(node._left));
         }
     }
